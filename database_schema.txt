@@ -1,0 +1,61 @@
+-- Users Table → Stores only user_id and email
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Forums Table → Stores forum information
+CREATE TABLE forums (
+    forum_id INT AUTO_INCREMENT PRIMARY KEY,
+    forum_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_by_user_id INT NOT NULL, -- The user who created the forum
+    FOREIGN KEY(created_by_user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Forum Membership Table →Tracks which users are associated with which forums.
+CREATE TABLE forum_memberships (
+    membership_id INT AUTO_INCREMENT PRIMARY KEY,
+    forum_id INT NOT NULL,
+    user_id INT NOT NULL,
+    joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (forum_id) REFERENCES forums(forum_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Posts Table → Stores all posts (including subposts) within forums.
+-- The parent_post_id allows posts to reference other posts, representing subposts.
+-- The path column is used to store the Materialized Path of each post, which encodes its position in the hierarchy.
+CREATE TABLE posts (
+    post_id INT AUTO_INCREMENT PRIMARY KEY,
+    forum_id INT NOT NULL,
+    parent_post_id INT DEFAULT NULL,  -- NULL for top-level posts, else references another post
+    user_id INT NOT NULL,
+    content TEXT NOT NULL,
+    path VARCHAR(255) NOT NULL,  -- Materialized path for hierarchy
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (forum_id) REFERENCES forums(forum_id) ON DELETE CASCADE,
+    FOREIGN KEY (parent_post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
+-- Votes Table → Tracks upvotes and downvotes on posts.
+CREATE TABLE votes (
+    vote_id INT AUTO_INCREMENT PRIMARY KEY,
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    vote_type ENUM('upvote', 'downvote') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    UNIQUE (post_id, user_id)  -- Each user can vote only once per post
+);
+
+-- Path Index for Materialized Path Efficiency
+CREATE INDEX idx_path ON posts(path);
+
+
+
